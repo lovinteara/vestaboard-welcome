@@ -6,7 +6,7 @@ const OWNERREZ_PAT = process.env.OWNERREZ_PAT;
 const VESTABOARD_TOKEN = process.env.VESTABOARD_TOKEN;
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 const PROPERTY_ID = "246664";
-const WIFI_NAME = "THE GATHERING";
+const WIFI_NAME = "     TGP       ";
 const WIFI_PASS = "CASCADE4139";
 let lastMessage = "";
 let lastWeatherDisplay = "";
@@ -55,7 +55,6 @@ async function fetchGuest(guestId) {
   });
   return res.json();
 }
-
 async function fetchWeather() {
   try {
     const res = await fetch(
@@ -63,7 +62,7 @@ async function fetchWeather() {
     );
     const data = await res.json();
     return {
-      description: data.weather?.[0]?.main || "CLEAR",
+      description: data.weather?.[0]?.description || "CLEAR",
       high: data.main?.temp_max || data.main?.temp || 50,
       low: data.main?.temp_min || data.main?.temp || 35
     };
