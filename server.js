@@ -11,8 +11,8 @@ function authHeader() {
 }
 
 function buildMessage(name) {
-  const safe = String(name || "GUEST").substring(0, 7).toUpperCase();
-  return `WELCOME ${safe}\nTHE GATHERING\nPLACE`;
+  const safe = String(name || "GUEST").substring(0, 9).toUpperCase();
+  return `WELCOME TO THE\nGATHERING PLACE\n${safe} FAMILY`;
 }
 
 async function checkBookings() {
