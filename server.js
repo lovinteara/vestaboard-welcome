@@ -4,76 +4,166 @@ const PORT = process.env.PORT || 3000;
 const OWNERREZ_EMAIL = process.env.OWNERREZ_EMAIL;
 const OWNERREZ_PAT = process.env.OWNERREZ_PAT;
 const VESTABOARD_TOKEN = process.env.VESTABOARD_TOKEN;
+const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
+const PROPERTY_ID = "246664";
+const WIFI_NAME = "THE GATHERING";
+const WIFI_PASS = "CASCADE4139";
 let lastMessage = "";
+let lastWeatherDisplay = "";
+let currentGuest = null;
 
 function authHeader() {
   return "Basic " + Buffer.from(`${OWNERREZ_EMAIL}:${OWNERREZ_PAT}`).toString("base64");
 }
 
-function buildMessage(name) {
-  const safe = String(name || "GUEST").substring(0, 9).toUpperCase();
+function buildWelcomeMessage(lastName) {
+  const safe = String(lastName || "GUEST").substring(0, 11).toUpperCase();
   return `WELCOME TO THE\nGATHERING PLACE\n${safe} FAM`;
+}
+
+function buildCheckoutMessage(firstName) {
+  const safe = String(firstName || "GUEST").substring(0, 11).toUpperCase();
+  return `THANK YOU\n${safe} FAM\nSEE YOU AGAIN!`;
+}
+
+function buildWeatherMessage(weather) {
+  const day = new Date().toLocaleDateString("en-US", { timeZone: "America/Denver", weekday: "short", month: "short", day: "numeric" }).toUpperCase();
+  const desc = String(weather.description || "").toUpperCase().substring(0, 15);
+  const high = Math.round(weather.high);
+  const low = Math.round(weather.low);
+  return `ISLAND PARK WX\n${desc}\n${day} ${high}F/${low}F`.substring(0, 15 * 3 + 2);
+}
+
+function buildWifiMessage() {
+  return `WIFI INFO\n${WIFI_NAME}\n${WIFI_PASS}`;
 }
 
 async function fetchGuest(guestId) {
   const res = await fetch(`https://api.ownerrez.com/v2/guests/${guestId}`, {
-    headers: {
-      "Authorization": authHeader(),
-      "Accept": "application/json",
-      "User-Agent": "vestaboard-script"
-    }
+    headers: { "Authorization": authHeader(), "Accept": "application/json", "User-Agent": "vestaboard-script" }
   });
-  const data = await res.json();
-  console.log("Guest data:", JSON.stringify(data).substring(0, 300));
-  return data;
+  return res.json();
+}
+
+async function fetchWeather() {
+  try {
+    const res = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?q=Island+Park,Idaho,US&appid=${WEATHER_API_KEY}&units=imperial`
+    );
+    const data = await res.json();
+    return {
+      description: data.weather?.[0]?.main || "CLEAR",
+      high: data.main?.temp_max || data.main?.temp || 50,
+      low: data.main?.temp_min || data.main?.temp || 35
+    };
+  } catch (err) {
+    console.error("Weather fetch error:", err.message);
+    return null;
+  }
+}
+
+async function sendToVestaboard(text) {
+  if (!VESTABOARD_TOKEN || VESTABOARD_TOKEN === "NOT_READY_YET") {
+    console.log("Vestaboard not connected yet - message ready:", text.replace(/\n/g, " | "));
+    return;
+  }
+  await fetch("https://cloud.vestaboard.com/", {
+    method: "POST",
+    headers: { "X-Vestaboard-Token": VESTABOARD_TOKEN, "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+  console.log("Sent to Vestaboard:", text.replace(/\n/g, " | "));
 }
 
 async function checkBookings() {
   console.log("Checking bookings...");
   const now = new Date();
   const localDate = now.toLocaleDateString("en-CA", { timeZone: "America/Denver" });
-  console.log("Checking for arrival date:", localDate);
-  const url = `https://api.ownerrez.com/v2/bookings?property_ids=246664&include_guests=true`;
+  const localHour = parseInt(now.toLocaleString("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }));
+  console.log(`Local date: ${localDate} | Local hour: ${localHour}`);
+
   try {
-    const res = await fetch(url, {
-      headers: {
-        "Authorization": authHeader(),
-        "Accept": "application/json",
-        "User-Agent": "vestaboard-script"
-      }
+    const res = await fetch(`https://api.ownerrez.com/v2/bookings?property_ids=${PROPERTY_ID}&include_guests=true`, {
+      headers: { "Authorization": authHeader(), "Accept": "application/json", "User-Agent": "vestaboard-script" }
     });
     const data = await res.json();
     const bookings = data.items || data.results || [];
-    console.log(`Total bookings fetched: ${bookings.length}`);
-    const todayBooking = bookings.find(b => b.arrival === localDate && !b.is_block);
-    if (!todayBooking) {
-      console.log("No arrivals today.");
+
+    const todayArrival = bookings.find(b => b.arrival === localDate && !b.is_block);
+    const todayDeparture = bookings.find(b => b.departure === localDate && !b.is_block);
+
+    // CHECKOUT: 10am-3pm on departure day
+    if (todayDeparture && localHour >= 10 && localHour < 15) {
+      const guest = await fetchGuest(todayDeparture.guest_id);
+      currentGuest = guest;
+      const message = buildCheckoutMessage(guest.first_name);
+      if (message !== lastMessage) {
+        await sendToVestaboard(message);
+        lastMessage = message;
+      }
       return;
     }
-    console.log("Arrival found, guest_id:", todayBooking.guest_id);
-    const guest = await fetchGuest(todayBooking.guest_id);
-    const name = guest.last_name || guest.first_name || "GUEST";
-    console.log("Guest name:", name);
-    const message = buildMessage(name);
-    console.log("Message ready:", message.replace(/\n/g, " | "));
-    if (message === lastMessage) { console.log("Already sent."); return; }
-    if (VESTABOARD_TOKEN === "NOT_READY_YET") {
-      console.log("Vestaboard not connected yet - message ready:", message);
+
+    // WELCOME: 3pm onwards on arrival day
+    if (todayArrival && localHour >= 15) {
+      const guest = await fetchGuest(todayArrival.guest_id);
+      currentGuest = guest;
+      const message = buildWelcomeMessage(guest.last_name);
+      if (message !== lastMessage) {
+        await sendToVestaboard(message);
+        lastMessage = message;
+      }
       return;
     }
-    await fetch("https://cloud.vestaboard.com/", {
-      method: "POST",
-      headers: { "X-Vestaboard-Token": VESTABOARD_TOKEN, "Content-Type": "application/json" },
-      body: JSON.stringify({ text: message })
-    });
-    lastMessage = message;
-    console.log("Sent to Vestaboard:", message.replace(/\n/g, " | "));
+
+    // BETWEEN GUESTS: rotate weather and wifi randomly
+    console.log("No active guest period - showing weather or wifi.");
+    const showWifi = Math.random() < 0.3; // 30% chance wifi, 70% weather
+    if (showWifi) {
+      const message = buildWifiMessage();
+      if (message !== lastMessage) {
+        await sendToVestaboard(message);
+        lastMessage = message;
+      }
+    } else {
+      const weather = await fetchWeather();
+      if (weather) {
+        const message = buildWeatherMessage(weather);
+        if (message !== lastMessage) {
+          await sendToVestaboard(message);
+          lastMessage = message;
+        }
+      }
+    }
+
   } catch (err) {
     console.error("Error:", err.message);
   }
 }
 
-app.get("/", (_req, res) => res.send("Vestaboard script running ✅"));
-app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+async function morningWeather() {
+  console.log("8am weather display...");
+  const weather = await fetchWeather();
+  if (weather) {
+    const message = buildWeatherMessage(weather);
+    await sendToVestaboard(message);
+    lastMessage = message;
+  }
+}
+
+// Check every 5 minutes
 setTimeout(() => checkBookings(), 3000);
 setInterval(() => checkBookings(), 5 * 60 * 1000);
+
+// 8am weather check daily (Mountain Time = UTC-6/7)
+setInterval(() => {
+  const now = new Date();
+  const localHour = parseInt(now.toLocaleString("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }));
+  const localMin = now.getMinutes();
+  if (localHour === 8 && localMin < 5) {
+    morningWeather();
+  }
+}, 60 * 1000);
+
+app.get("/", (_req, res) => res.send("Vestaboard script running ✅"));
+app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
