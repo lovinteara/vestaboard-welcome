@@ -34,7 +34,7 @@ async function checkBookings() {
     const bookings = data.results || [];
     console.log(`Found ${bookings.length} arrival(s) today.`);
     if (!bookings.length) return;
-    const name = bookings[0]?.guest?.first_name || "GUEST";
+    const name = bookings[0]?.guest?.last_name || bookings[0]?.guest?.first_name || "GUEST";
     const message = buildMessage(name);
     if (message === lastMessage) { console.log("Already sent."); return; }
     if (VESTABOARD_TOKEN === "NOT_READY_YET") { console.log("Vestaboard not connected yet - message ready:", message); return; }
