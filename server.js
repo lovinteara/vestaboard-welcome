@@ -22,7 +22,7 @@ async function checkBookings() {
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
   console.log("Date range:", today.toISOString(), "to", tomorrow.toISOString());
-  const url = `https://api.ownerrez.com/v2/bookings?arrival_from_utc=${today.toISOString()}&arrival_to_utc=${tomorrow.toISOString()}&include_guests=true`;
+  const url = `https://api.ownerrez.com/v2/bookings?property_ids=246664&arrival_from_utc=${today.toISOString()}&arrival_to_utc=${tomorrow.toISOString()}&include_guests=true`;
   try {
     const res = await fetch(url, {
       headers: {
@@ -38,6 +38,7 @@ async function checkBookings() {
     if (!bookings.length) return;
     const name = bookings[0]?.guest?.last_name || bookings[0]?.guest?.first_name || "GUEST";
     const message = buildMessage(name);
+    console.log("Message ready:", message);
     if (message === lastMessage) { console.log("Already sent."); return; }
     if (VESTABOARD_TOKEN === "NOT_READY_YET") { console.log("Vestaboard not connected yet - message ready:", message); return; }
     await fetch("https://cloud.vestaboard.com/", {
