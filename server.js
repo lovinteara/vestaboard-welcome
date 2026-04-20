@@ -21,6 +21,7 @@ async function checkBookings() {
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
+  console.log("Date range:", today.toISOString(), "to", tomorrow.toISOString());
   const url = `https://api.ownerrez.com/v2/bookings?arrival_from_utc=${today.toISOString()}&arrival_to_utc=${tomorrow.toISOString()}&include_guests=true`;
   try {
     const res = await fetch(url, {
@@ -31,6 +32,7 @@ async function checkBookings() {
       }
     });
     const data = await res.json();
+    console.log("Raw OwnerRez response:", JSON.stringify(data).substring(0, 500));
     const bookings = data.results || [];
     console.log(`Found ${bookings.length} arrival(s) today.`);
     if (!bookings.length) return;
