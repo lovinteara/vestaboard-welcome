@@ -17,12 +17,10 @@ function buildMessage(name) {
 
 async function checkBookings() {
   console.log("Checking bookings...");
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  console.log("Date range:", today.toISOString(), "to", tomorrow.toISOString());
-  const url = `https://api.ownerrez.com/v2/bookings?property_ids=246664&arrival_from_utc=${today.toISOString()}&arrival_to_utc=${tomorrow.toISOString()}&include_guests=true`;
+  const now = new Date();
+  const localDate = now.toLocaleDateString("en-CA", { timeZone: "America/Denver" });
+  console.log("Checking for arrival date:", localDate);
+  const url = `https://api.ownerrez.com/v2/bookings?property_ids=246664&include_guests=true`;
   try {
     const res = await fetch(url, {
       headers: {
@@ -32,22 +30,30 @@ async function checkBookings() {
       }
     });
     const data = await res.json();
-    console.log("Raw OwnerRez response:", JSON.stringify(data).substring(0, 500));
-    const bookings = data.results || [];
-    console.log(`Found ${bookings.length} arrival(s) today.`);
-    if (!bookings.length) return;
-    const name = bookings[0]?.guest?.last_name || bookings[0]?.guest?.first_name || "GUEST";
+    const bookings = data.items || data.results || [];
+    console.log(`Total bookings fetched: ${bookings.length}`);
+    const todayBooking = bookings.find(b => b.arrival === localDate && !b.is_block);
+    if (!todayBooking) {
+      console.log("No arrivals today.");
+      return;
+    }
+    console.log("Arrival found:", JSON.stringify(todayBooking).substring(0, 200));
+    const guest = todayBooking.guest || {};
+    const name = guest.last_name || guest.first_name || "GUEST";
     const message = buildMessage(name);
-    console.log("Message ready:", message);
+    console.log("Message ready:", message.replace(/\n/g, " | "));
     if (message === lastMessage) { console.log("Already sent."); return; }
-    if (VESTABOARD_TOKEN === "NOT_READY_YET") { console.log("Vestaboard not connected yet - message ready:", message); return; }
+    if (VESTABOARD_TOKEN === "NOT_READY_YET") {
+      console.log("Vestaboard not connected yet - message ready:", message);
+      return;
+    }
     await fetch("https://cloud.vestaboard.com/", {
       method: "POST",
       headers: { "X-Vestaboard-Token": VESTABOARD_TOKEN, "Content-Type": "application/json" },
       body: JSON.stringify({ text: message })
     });
     lastMessage = message;
-    console.log("Sent to Vestaboard:", message);
+    console.log("Sent to Vestaboard:", message.replace(/\n/g, " | "));
   } catch (err) {
     console.error("Error:", err.message);
   }
