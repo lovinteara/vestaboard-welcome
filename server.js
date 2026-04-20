@@ -27,11 +27,22 @@ function buildCheckoutMessage(firstName) {
 }
 
 function buildWeatherMessage(weather) {
-  const day = new Date().toLocaleDateString("en-US", { timeZone: "America/Denver", weekday: "short", month: "short", day: "numeric" }).toUpperCase();
+  const day = new Date().toLocaleDateString("en-US", {
+    timeZone: "America/Denver",
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  }).toUpperCase();
+  
   const desc = String(weather.description || "").toUpperCase().substring(0, 15);
   const high = Math.round(weather.high);
   const low = Math.round(weather.low);
-  return `ISLAND PARK WX\n${desc}\n${day} ${high}F/${low}F`.substring(0, 15 * 3 + 2);
+  
+  const line1 = "ISLAND PARK WX".padEnd(15).substring(0, 15);
+  const line2 = desc.padEnd(15).substring(0, 15);
+  const line3 = `${day} ${high}F/${low}F`.padEnd(15).substring(0, 15);
+  
+  return `${line1}\n${line2}\n${line3}`;
 }
 
 function buildWifiMessage() {
