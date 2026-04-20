@@ -12,7 +12,7 @@ function authHeader() {
 
 function buildMessage(name) {
   const safe = String(name || "GUEST").substring(0, 9).toUpperCase();
-  return `WELCOME TO THE\nGATHERING PLACE\n${safe} FAMILY`;
+  return `WELCOME TO THE\nGATHERING PLACE\n${safe} FAM`;
 }
 
 async function fetchGuest(guestId) {
