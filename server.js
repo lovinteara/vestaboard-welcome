@@ -15,6 +15,19 @@ function buildMessage(name) {
   return `WELCOME TO THE\nGATHERING PLACE\n${safe} FAMILY`;
 }
 
+async function fetchGuest(guestId) {
+  const res = await fetch(`https://api.ownerrez.com/v2/guests/${guestId}`, {
+    headers: {
+      "Authorization": authHeader(),
+      "Accept": "application/json",
+      "User-Agent": "vestaboard-script"
+    }
+  });
+  const data = await res.json();
+  console.log("Guest data:", JSON.stringify(data).substring(0, 200));
+  return data;
+}
+
 async function checkBookings() {
   console.log("Checking bookings...");
   const now = new Date();
@@ -37,9 +50,10 @@ async function checkBookings() {
       console.log("No arrivals today.");
       return;
     }
-    console.log("Arrival found:", JSON.stringify(todayBooking).substring(0, 200));
-    const guest = todayBooking.guest || {};
+    console.log("Arrival found, guest_id:", todayBooking.guest_id);
+    const guest = await fetchGuest(todayBooking.guest_id);
     const name = guest.last_name || guest.first_name || "GUEST";
+    console.log("Guest name:", name);
     const message = buildMessage(name);
     console.log("Message ready:", message.replace(/\n/g, " | "));
     if (message === lastMessage) { console.log("Already sent."); return; }
