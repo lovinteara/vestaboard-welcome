@@ -24,7 +24,7 @@ async function fetchGuest(guestId) {
     }
   });
   const data = await res.json();
-  console.log("Guest data:", JSON.stringify(data).substring(0, 200));
+  console.log("Guest data:", JSON.stringify(data).substring(0, 300));
   return data;
 }
 
