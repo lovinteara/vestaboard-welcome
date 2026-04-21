@@ -56,7 +56,7 @@ async function fetchGuest(guestId) {
 
 const LOCATIONS = [
   { name: "ISLAND PARK ID",   query: "Island Park,Idaho,US" },
-  { name: "W YELLOWSTONE MT", query: "West Yellowstone,Montana,US" },
+  { name: "W YELLOWSTN MT", query: "West Yellowstone,Montana,US" },
   { name: "GARDINER MT",      query: "Gardiner,Montana,US" },
   { name: "JACKSON HOLE WY",  query: "Jackson,Wyoming,US" },
   { name: "CODY WY",          query: "Cody,Wyoming,US" },
