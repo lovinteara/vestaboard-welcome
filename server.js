@@ -68,14 +68,32 @@ const LOCATIONS = [
 async function fetchWeatherForLocation(location) {
   try {
     const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location.query)}&appid=${WEATHER_API_KEY}&units=imperial`
+      `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(location.query)}&appid=${WEATHER_API_KEY}&units=imperial`
     );
     const data = await res.json();
+    const list = data.list || [];
+    if (list.length === 0) return null;
+
+    // Use the first forecast item for the current condition description
+    const first = list[0];
+
+    // Filter all forecast items that fall on today's date (Mountain Time)
+    const todayDate = new Date().toLocaleDateString("en-CA", { timeZone: "America/Denver" });
+    const todayItems = list.filter(item => {
+      const itemDate = new Date(item.dt * 1000).toLocaleDateString("en-CA", { timeZone: "America/Denver" });
+      return itemDate === todayDate;
+    });
+
+    // Fall back to the first item if no items match today (e.g. late-night edge case)
+    const relevantItems = todayItems.length > 0 ? todayItems : [first];
+    const high = Math.max(...relevantItems.map(item => item.main?.temp_max ?? item.main?.temp));
+    const low = Math.min(...relevantItems.map(item => item.main?.temp_min ?? item.main?.temp));
+
     return {
       name: location.name,
-      description: data.weather?.[0]?.description || "CLEAR",
-      high: data.main?.temp_max || data.main?.temp || 50,
-      low: data.main?.temp_min || data.main?.temp || 35
+      description: first.weather?.[0]?.description || "CLEAR",
+      high,
+      low
     };
   } catch (err) {
     console.error(`Weather fetch error for ${location.name}:`, err.message);
