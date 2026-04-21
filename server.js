@@ -464,7 +464,15 @@ async function fetchGuest(guestId) {
 }
 
 function getGuestPin(guest) {
-  const phone = (guest?.phone || guest?.phone_number || "").replace(/\D/g, "");
+  const phone = (
+    guest?.phone ||
+    guest?.phone_number ||
+    guest?.cell_phone ||
+    guest?.home_phone ||
+    guest?.mobile ||
+    guest?.mobile_phone ||
+    ""
+  ).replace(/\D/g, "");
   return phone.slice(-4) || "0000";
 }
 
@@ -870,15 +878,13 @@ app.post("/guest/post", async (req, res) => {
     </html>
   `);
 });
-
+// --- Debug for phone
 app.get("/debug", (_req, res) => {
-  const pin = currentGuest ? getGuestPin(currentGuest) : "NO GUEST LOADED";
-  const phone = currentGuest?.phone || currentGuest?.phone_number || "NO PHONE FOUND";
   res.json({
     currentGuest: currentGuest ? "LOADED" : "NULL",
     guestName: currentGuest?.first_name || "none",
-    rawPhone: phone,
-    calculatedPin: pin
+    allFields: currentGuest ? Object.keys(currentGuest) : [],
+    calculatedPin: currentGuest ? getGuestPin(currentGuest) : "NO GUEST"
   });
 });
 
