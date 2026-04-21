@@ -135,8 +135,8 @@ async function fetchNPSFees(park) {
     const data = await res.json();
     const fees = data.data?.[0]?.fees || [];
 
-    const usFee = fees.find(f => f.title.toLowerCase().includes("per vehicle") && !f.title.toLowerCase().includes("non"));
-    const intlFee = fees.find(f => f.title.toLowerCase().includes("non"));
+    const usFee = fees.find(f => f.title?.toLowerCase().includes("per vehicle") && !f.title?.toLowerCase().includes("non"));
+    const intlFee = fees.find(f => f.title?.toLowerCase().includes("non"));
 
     if (!usFee) return null;
 
@@ -152,7 +152,6 @@ async function fetchNPSFees(park) {
     return null;
   }
 }
-
 async function fetchAllNPS() {
   const alerts = await Promise.all(NPS_PARKS.map(fetchNPSAlerts));
   const fees = await Promise.all(NPS_PARKS.map(fetchNPSFees));
