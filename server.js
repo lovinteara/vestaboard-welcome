@@ -871,6 +871,17 @@ app.post("/guest/post", async (req, res) => {
   `);
 });
 
+app.get("/debug", (_req, res) => {
+  const pin = currentGuest ? getGuestPin(currentGuest) : "NO GUEST LOADED";
+  const phone = currentGuest?.phone || currentGuest?.phone_number || "NO PHONE FOUND";
+  res.json({
+    currentGuest: currentGuest ? "LOADED" : "NULL",
+    guestName: currentGuest?.first_name || "none",
+    rawPhone: phone,
+    calculatedPin: pin
+  });
+});
+
 // ─── HEALTH CHECK ─────────────────────────────────────────────
 app.get("/", (_req, res) => res.send("Vestaboard script running ✅"));
 
