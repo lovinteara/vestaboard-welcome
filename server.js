@@ -55,21 +55,38 @@ async function fetchGuest(guestId) {
   });
   return res.json();
 }
-async function fetchWeather() {
+const LOCATIONS = [
+  { name: "ISLAND PARK ID",   query: "Island Park,Idaho,US" },
+  { name: "W YELLOWSTONE MT", query: "West Yellowstone,Montana,US" },
+  { name: "GARDINER MT",      query: "Gardiner,Montana,US" },
+  { name: "JACKSON HOLE WY",  query: "Jackson,Wyoming,US" },
+  { name: "CODY WY",          query: "Cody,Wyoming,US" },
+  { name: "IDAHO FALLS IDA",  query: "Idaho Falls,Idaho,US" },
+  { name: "SALT LAKE CITY",   query: "Salt Lake City,Utah,US" },
+  { name: "BOZEMAN BZN",      query: "Bozeman,Montana,US" },
+];
+
+async function fetchWeatherForLocation(location) {
   try {
     const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=Island+Park,Idaho,US&appid=${WEATHER_API_KEY}&units=imperial`
+      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location.query)}&appid=${WEATHER_API_KEY}&units=imperial`
     );
     const data = await res.json();
     return {
+      name: location.name,
       description: data.weather?.[0]?.description || "CLEAR",
       high: data.main?.temp_max || data.main?.temp || 50,
       low: data.main?.temp_min || data.main?.temp || 35
     };
   } catch (err) {
-    console.error("Weather fetch error:", err.message);
+    console.error(`Weather fetch error for ${location.name}:`, err.message);
     return null;
   }
+}
+
+async function fetchAllWeather() {
+  const results = await Promise.all(LOCATIONS.map(fetchWeatherForLocation));
+  return results.filter(r => r !== null);
 }
 
 async function sendToVestaboard(text) {
