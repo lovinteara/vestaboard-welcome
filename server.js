@@ -38,7 +38,7 @@ function buildWeatherMessage(weather) {
   const high = Math.round(weather.high);
   const low = Math.round(weather.low);
   
-  const line1 = "ISLAND PARK WX".padEnd(15).substring(0, 15);
+  const line1 = "ISLAND PARK ID".padEnd(15).substring(0, 15);
   const line2 = desc.padEnd(15).substring(0, 15);
   const line3 = `${day} ${high}F/${low}F`.padEnd(15).substring(0, 15);
   
