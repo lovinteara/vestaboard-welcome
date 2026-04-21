@@ -21,6 +21,7 @@ const WIFI_PASS = "CASCADE4139";
 
 let lastMessage = "";
 let currentGuest = null;
+let nextArrivalDate = null;
 let weatherRotationIndex = 0;
 let npsRotationIndex = 0;
 let quoteRotationIndex = 0;
@@ -333,6 +334,46 @@ const QUOTES = [
   "YOU MADE IT\nOUT OF OFFICE\nFOR REAL",
 ];
 
+const CLEANING_REMINDERS = [
+  "TAKE PHOTOS\nOF HOW YOU\nFOUND IT FIRST",
+  "SEND PHOTOS\nTO TEARA AT\n3856850272",
+  "CHECK UNDER\nALL 6 BEDS\nAND VACUUM",
+  "REPLACE ALL\n8 QUEEN BED\nLINENS",
+  "REPLACE ALL\nBUNK BED\nLINENS",
+  "CHECK ALL\n5 BATHROOMS\nRESTOCKED",
+  "RESTOCK ALL\nTOILETRIES\nAND TOWELS",
+  "CLEAN AND\nCHECK HOT TUB\nOUTSIDE",
+  "CHECK BOTH\nOUTDOOR\nGRILLS",
+  "DONT FORGET\nGAME ROOM\nCLEAN IT ALL",
+  "WASH LINENS\nBOTH WASHER\nDRYERS GAME RM",
+  "PLACE COOLER\nGIFT ON THE\nKITCHEN TABLE",
+  "CHECK REMOTES\nGATHERING RM\nAND GAME ROOM",
+  "ARRANGE ALL\nOUTDOOR\nFURNITURE",
+  "CHECK FRIDGE\nREMOVE ALL\nLEFTOVERS",
+  "RESTOCK\nCOFFEE TEA\nAND SUPPLIES",
+  "CHECK ALL\nPAPER TOWELS\nAND NAPKINS",
+  "WIPE DOWN ALL\nKITCHEN\nAPPLIANCES",
+  "RUN THE\nDISHWASHER\nCHECK IT",
+  "VACUUM AND\nSWEEP ALL\nFLOORS",
+  "DUST ALL\nCEILING FANS\nCHECK LIGHTS",
+  "CHECK ALL\nCLOSETS FOR\nLEFT ITEMS",
+  "TAKE OUT ALL\nTRASH AND\nRECYCLING",
+  "CHECK ALL\nDOOR LOCKS\nAND KEYPADS",
+  "TAKE PHOTOS\nAFTER CLEANING\nBEFORE YOU GO",
+  "SEND PHOTOS\nTO TEARA AT\n3856850272",
+];
+
+const CLEANING_REMINDERS_CHECKIN = [
+  ...CLEANING_REMINDERS,
+  "GUESTS CHECK\nIN TODAY TURN\nON ICE MACHINE",
+];
+
+const SOUVENIR_MESSAGES = [
+  "ISLAND PARK\nGIFTS + GEAR\nTXT 2085890503",
+  "HOODIES SHIRTS\nSTICKERS + MORE\nTXT 2085890503",
+  "ORNAMENTS AND\nSOUVENIRS AVAIL\nTXT 2085890503",
+];
+
 function shuffleQuotes() {
   quoteQueue = [...QUOTES].sort(() => Math.random() - 0.5);
   quoteRotationIndex = 0;
@@ -382,9 +423,24 @@ function buildWifiMessage() {
   return `WIFI INFO\n${WIFI_NAME}\n${WIFI_PASS}`;
 }
 
+function buildCountdownMessage(nextArrival, localDate) {
+  if (!nextArrival) return `NO UPCOMING\nCHECK INS\nSCHEDULED`;
+  const today = new Date(localDate);
+  const arrival = new Date(nextArrival);
+  const diffTime = arrival - today;
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return `NEXT GUESTS\nCHECK IN TODAY\nAT 3PM`;
+  if (diffDays === 1) return `NEXT GUESTS\nCHECK IN\nTOMORROW`;
+  return `NEXT GUESTS\nCHECK IN\nIN ${diffDays} DAYS`;
+}
+
 function getNextQuote() {
   if (quoteRotationIndex >= quoteQueue.length) shuffleQuotes();
   return quoteQueue[quoteRotationIndex++];
+}
+
+function getRandomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 async function sendSMS(body) {
@@ -553,6 +609,8 @@ async function checkBookings() {
   const now = new Date();
   const localDate = now.toLocaleDateString("en-CA", { timeZone: "America/Denver" });
   const localHour = parseInt(now.toLocaleString("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }));
+  const localMin = now.getMinutes();
+  const localTime = localHour + localMin / 60;
   console.log(`Local date: ${localDate} | Local hour: ${localHour}`);
 
   try {
@@ -565,11 +623,19 @@ async function checkBookings() {
     clearTimeout(timeout);
     const data = await res.json();
     const bookings = data.items || data.results || [];
+    const activeBookings = bookings.filter(b => !b.is_block);
 
-    const todayArrival = bookings.find(b => b.arrival === localDate && !b.is_block);
-    const todayDeparture = bookings.find(b => b.departure === localDate && !b.is_block);
+    const todayArrival = activeBookings.find(b => b.arrival === localDate);
+    const todayDeparture = activeBookings.find(b => b.departure === localDate);
 
-    if (todayDeparture && localHour >= 10 && localHour < 15) {
+    // Find next upcoming arrival
+    const futureBookings = activeBookings
+      .filter(b => b.arrival > localDate)
+      .sort((a, b) => a.arrival.localeCompare(b.arrival));
+    nextArrivalDate = futureBookings[0]?.arrival || (todayArrival ? localDate : null);
+
+    // CHECKOUT: 9am to 10:30am on departure day
+    if (todayDeparture && localTime >= 9 && localTime < 10.5) {
       const guest = await fetchGuest(todayDeparture.guest_id);
       currentGuest = guest;
       const message = buildCheckoutMessage(guest.first_name);
@@ -580,7 +646,36 @@ async function checkBookings() {
       return;
     }
 
-    if (todayArrival && localHour >= 15) {
+    // CLEANING GAP: 10:30am to 3pm on departure day
+    if (todayDeparture && localTime >= 10.5 && localTime < 15) {
+      const isBackToBack = todayArrival !== undefined;
+      const reminders = isBackToBack ? CLEANING_REMINDERS_CHECKIN : CLEANING_REMINDERS;
+      const rand = Math.random();
+      let message;
+
+      if (rand < 0.40) {
+        message = buildCountdownMessage(nextArrivalDate, localDate);
+      } else if (rand < 0.65) {
+        message = getRandomItem(reminders);
+      } else if (rand < 0.70) {
+        const allWeather = await fetchAllWeather();
+        if (allWeather.length > 0) {
+          message = buildWeatherMessage(allWeather[weatherRotationIndex % allWeather.length]);
+          weatherRotationIndex++;
+        }
+      } else {
+        message = getNextQuote();
+      }
+
+      if (message && message !== lastMessage) {
+        await sendToVestaboard(message);
+        lastMessage = message;
+      }
+      return;
+    }
+
+    // WELCOME: 3pm onwards on arrival day
+    if (todayArrival && localTime >= 15) {
       const guest = await fetchGuest(todayArrival.guest_id);
       currentGuest = guest;
       const message = buildWelcomeMessage(guest.last_name);
@@ -591,8 +686,9 @@ async function checkBookings() {
       return;
     }
 
+    // REGULAR ROTATION
+    console.log("Regular rotation - showing content.");
     const rand = Math.random();
-    console.log("No active guest period - showing content.");
 
     if (rand < 0.05) {
       const message = buildWifiMessage();
@@ -600,7 +696,13 @@ async function checkBookings() {
         await sendToVestaboard(message);
         lastMessage = message;
       }
-    } else if (rand < 0.25) {
+    } else if (rand < 0.10) {
+      const message = getRandomItem(SOUVENIR_MESSAGES);
+      if (message !== lastMessage) {
+        await sendToVestaboard(message);
+        lastMessage = message;
+      }
+    } else if (rand < 0.30) {
       const allWeather = await fetchAllWeather();
       if (allWeather.length > 0) {
         const weather = allWeather[weatherRotationIndex % allWeather.length];
@@ -611,7 +713,7 @@ async function checkBookings() {
           lastMessage = message;
         }
       }
-    } else if (rand < 0.45) {
+    } else if (rand < 0.50) {
       const allNPS = await fetchAllNPS();
       if (allNPS.length > 0) {
         const message = allNPS[npsRotationIndex % allNPS.length];
@@ -649,7 +751,7 @@ app.get("/guest", (req, res) => {
         <style>
           body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; text-align: center; background: #111; color: #fff; }
           h1 { color: #f5c842; }
-          input, textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; box-sizing: border-box; }
+          input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; box-sizing: border-box; }
           button { background: #f5c842; color: #111; padding: 12px 24px; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; width: 100%; margin-top: 10px; }
           p { color: #aaa; font-size: 14px; }
         </style>
