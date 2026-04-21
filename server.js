@@ -33,15 +33,13 @@ function buildWeatherMessage(weather) {
     month: "short",
     day: "numeric"
   }).toUpperCase();
-  
-  const desc = String(weather.description || "").toUpperCase().substring(0, 15);
+
+  const line1 = weather.name.padEnd(15).substring(0, 15);
+  const line2 = String(weather.description || "").toUpperCase().padEnd(15).substring(0, 15);
   const high = Math.round(weather.high);
   const low = Math.round(weather.low);
-  
-  const line1 = "ISLAND PARK ID".padEnd(15).substring(0, 15);
-  const line2 = desc.padEnd(15).substring(0, 15);
   const line3 = `${day} ${high}F/${low}F`.padEnd(15).substring(0, 15);
-  
+
   return `${line1}\n${line2}\n${line3}`;
 }
 
