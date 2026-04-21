@@ -11,6 +11,7 @@ const WIFI_PASS = "CASCADE4139";
 let lastMessage = "";
 let lastWeatherDisplay = "";
 let currentGuest = null;
+let weatherRotationIndex = 0;
 
 function authHeader() {
   return "Basic " + Buffer.from(`${OWNERREZ_EMAIL}:${OWNERREZ_PAT}`).toString("base64");
