@@ -151,9 +151,11 @@ async function checkBookings() {
         await sendToVestaboard(message);
         lastMessage = message;
       }
-    } else {
-      const weather = await fetchWeather();
-      if (weather) {
+   } else {
+      const allWeather = await fetchAllWeather();
+      if (allWeather.length > 0) {
+        const weather = allWeather[weatherRotationIndex % allWeather.length];
+        weatherRotationIndex++;
         const message = buildWeatherMessage(weather);
         if (message !== lastMessage) {
           await sendToVestaboard(message);
@@ -162,16 +164,12 @@ async function checkBookings() {
       }
     }
 
-  } catch (err) {
-    console.error("Error:", err.message);
-  }
-}
-
 async function morningWeather() {
   console.log("8am weather display...");
-  const weather = await fetchWeather();
-  if (weather) {
-    const message = buildWeatherMessage(weather);
+  const allWeather = await fetchAllWeather();
+  if (allWeather.length > 0) {
+    weatherRotationIndex = 0;
+    const message = buildWeatherMessage(allWeather[0]);
     await sendToVestaboard(message);
     lastMessage = message;
   }
