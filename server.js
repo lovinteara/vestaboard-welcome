@@ -625,8 +625,17 @@ async function checkBookings() {
     const bookings = data.items || data.results || [];
     const activeBookings = bookings.filter(b => !b.is_block);
 
+ // Grab currentGuest PIN from booking during entire stay for https://vestaboard-welcome-production.up.railway.app/guest
     const todayArrival = activeBookings.find(b => b.arrival === localDate);
     const todayDeparture = activeBookings.find(b => b.departure === localDate);
+    const currentStay = activeBookings.find(b => b.arrival <= localDate && b.departure > localDate);
+
+// Keep currentGuest loaded during entire stay
+if (currentStay && !currentGuest) {
+  const guest = await fetchGuest(currentStay.guest_id);
+  currentGuest = guest;
+  console.log(`Mid-stay guest loaded: ${guest.first_name}`);
+}
 
    // Find next upcoming arrival
     const futureBookings = activeBookings
