@@ -77,22 +77,30 @@ async function fetchWeatherForLocation(location) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location.query)}&appid=${WEATHER_API_KEY}&units=imperial`,
+      `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(location.query)}&appid=${WEATHER_API_KEY}&units=imperial`,
       { signal: controller.signal }
     );
     clearTimeout(timeout);
     const data = await res.json();
+    const todayMT = new Date().toLocaleDateString("en-CA", { timeZone: "America/Denver" });
+    const todayItems = (data.list || []).filter(item => {
+      const itemDate = new Date(item.dt * 1000).toLocaleDateString("en-CA", { timeZone: "America/Denver" });
+      return itemDate === todayMT;
+    });
+    const items = todayItems.length > 0 ? todayItems : (data.list || []).slice(0, 1);
+    if (items.length === 0) return null;
     return {
       name: location.name,
-      description: data.weather?.[0]?.description || "CLEAR",
-      high: data.main?.temp_max || data.main?.temp || 50,
-      low: data.main?.temp_min || data.main?.temp || 35
+      description: items[0].weather?.[0]?.description || "CLEAR",
+      high: Math.max(...items.map(item => item.main?.temp_max ?? item.main?.temp ?? 50)),
+      low: Math.min(...items.map(item => item.main?.temp_min ?? item.main?.temp ?? 35))
     };
   } catch (err) {
     console.error(`Weather fetch error for ${location.name}:`, err.message);
     return null;
   }
 }
+
 
 async function fetchAllWeather() {
   const results = await Promise.all(LOCATIONS.map(fetchWeatherForLocation));
@@ -133,10 +141,10 @@ async function fetchNPSFees(park) {
     );
     clearTimeout(timeout);
     const data = await res.json();
-    const fees = data.data?.[0]?.fees || [];
+    const fees = (data.data?.[0]?.fees || []).filter(f => f && typeof f.title === "string");
 
-    const usFee = fees.find(f => f.title?.toLowerCase().includes("per vehicle") && !f.title?.toLowerCase().includes("non"));
-    const intlFee = fees.find(f => f.title?.toLowerCase().includes("non"));
+    const usFee = fees.find(f => f.title.toLowerCase().includes("per vehicle") && !f.title.toLowerCase().includes("non"));
+    const intlFee = fees.find(f => f.title.toLowerCase().includes("non"));
 
     if (!usFee) return null;
 
@@ -152,8 +160,10 @@ async function fetchNPSFees(park) {
     return null;
   }
 }
+
 async function fetchAllNPS() {
   const alerts = await Promise.all(NPS_PARKS.map(fetchNPSAlerts));
+
   const fees = await Promise.all(NPS_PARKS.map(fetchNPSFees));
   return [...alerts, ...fees].filter(r => r !== null);
 }
