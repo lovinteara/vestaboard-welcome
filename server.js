@@ -464,17 +464,15 @@ async function fetchGuest(guestId) {
 }
 
 function getGuestPin(guest) {
-  const phone = (
-    guest?.phone ||
-    guest?.phone_number ||
-    guest?.cell_phone ||
-    guest?.home_phone ||
-    guest?.mobile ||
-    guest?.mobile_phone ||
-    ""
-  ).replace(/\D/g, "");
-  return phone.slice(-4) || "0000";
+  // OwnerRez stores phones as an array
+  let phoneStr = "";
+  if (Array.isArray(guest?.phones) && guest.phones.length > 0) {
+    phoneStr = guest.phones[0]?.number || guest.phones[0]?.value || guest.phones[0] || "";
+  }
+  const digits = String(phoneStr).replace(/\D/g, "");
+  return digits.slice(-4) || "0000";
 }
+
 
 const LOCATIONS = [
   { name: "ISLAND PARK ID",  query: "Island Park,Idaho,US" },
@@ -878,12 +876,12 @@ app.post("/guest/post", async (req, res) => {
     </html>
   `);
 });
-// --- Debug for phone
+// --- Debug for phone numer PIN for guest automation for vestaboard
 app.get("/debug", (_req, res) => {
   res.json({
     currentGuest: currentGuest ? "LOADED" : "NULL",
     guestName: currentGuest?.first_name || "none",
-    allFields: currentGuest ? Object.keys(currentGuest) : [],
+    phones: currentGuest?.phones || "NONE",
     calculatedPin: currentGuest ? getGuestPin(currentGuest) : "NO GUEST"
   });
 });
