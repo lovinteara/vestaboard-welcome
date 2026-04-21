@@ -628,11 +628,11 @@ async function checkBookings() {
     const todayArrival = activeBookings.find(b => b.arrival === localDate);
     const todayDeparture = activeBookings.find(b => b.departure === localDate);
 
-    // Find next upcoming arrival
+   // Find next upcoming arrival
     const futureBookings = activeBookings
-      .filter(b => b.arrival > localDate)
-      .sort((a, b) => a.arrival.localeCompare(b.arrival));
-    nextArrivalDate = futureBookings[0]?.arrival || (todayArrival ? localDate : null);
+    .filter(b => b.arrival >= localDate)
+    .sort((a, b) => a.arrival.localeCompare(b.arrival));
+    nextArrivalDate = futureBookings[0]?.arrival || null;
 
     // CHECKOUT: 9am to 10:30am on departure day
     if (todayDeparture && localTime >= 9 && localTime < 10.5) {
