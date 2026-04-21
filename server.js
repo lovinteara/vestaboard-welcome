@@ -9,7 +9,6 @@ const PROPERTY_ID = "246664";
 const WIFI_NAME = "     TGP       ";
 const WIFI_PASS = "CASCADE4139";
 let lastMessage = "";
-let lastWeatherDisplay = "";
 let currentGuest = null;
 let weatherRotationIndex = 0;
 
@@ -54,6 +53,7 @@ async function fetchGuest(guestId) {
   });
   return res.json();
 }
+
 const LOCATIONS = [
   { name: "ISLAND PARK ID",   query: "Island Park,Idaho,US" },
   { name: "W YELLOWSTONE MT", query: "West Yellowstone,Montana,US" },
@@ -144,14 +144,14 @@ async function checkBookings() {
 
     // BETWEEN GUESTS: rotate weather and wifi randomly
     console.log("No active guest period - showing weather or wifi.");
-    const showWifi = Math.random() < 0.3; // 30% chance wifi, 70% weather
+    const showWifi = Math.random() < 0.3;
     if (showWifi) {
       const message = buildWifiMessage();
       if (message !== lastMessage) {
         await sendToVestaboard(message);
         lastMessage = message;
       }
-   } else {
+    } else {
       const allWeather = await fetchAllWeather();
       if (allWeather.length > 0) {
         const weather = allWeather[weatherRotationIndex % allWeather.length];
@@ -163,6 +163,11 @@ async function checkBookings() {
         }
       }
     }
+
+  } catch (err) {
+    console.error("Error:", err.message);
+  }
+}
 
 async function morningWeather() {
   console.log("8am weather display...");
