@@ -509,6 +509,37 @@ function getRandomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// ─── NPS TEXT HELPERS ─────────────────────────────────────────
+// Wraps a long string into lines of max 15 characters, breaking at word boundaries
+function wrapToLines(text, maxLen = 15) {
+  const words = text.toUpperCase().trim().split(/\s+/);
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    if (word.length > maxLen) {
+      if (current) lines.push(current.trim());
+      lines.push(word.substring(0, maxLen));
+      current = "";
+    } else if ((current + " " + word).trim().length <= maxLen) {
+      current = (current + " " + word).trim();
+    } else {
+      if (current) lines.push(current.trim());
+      current = word;
+    }
+  }
+  if (current) lines.push(current.trim());
+  return lines;
+}
+
+// Centers a string within a 15-character field
+function centerLine(text, width = 15) {
+  const t = String(text).substring(0, width);
+  const totalPad = width - t.length;
+  const left = Math.floor(totalPad / 2);
+  const right = totalPad - left;
+  return " ".repeat(left) + t + " ".repeat(right);
+}
+
 async function sendSMS(body) {
   try {
     await twilioClient.messages.create({
@@ -530,7 +561,6 @@ async function fetchGuest(guestId) {
 }
 
 function getGuestPin(guest) {
-  // OwnerRez stores phones as an array
   let phoneStr = "";
   if (Array.isArray(guest?.phones) && guest.phones.length > 0) {
     phoneStr = guest.phones[0]?.number || guest.phones[0]?.value || guest.phones[0] || "";
@@ -538,7 +568,6 @@ function getGuestPin(guest) {
   const digits = String(phoneStr).replace(/\D/g, "");
   return digits.slice(-4) || "0000";
 }
-
 
 const LOCATIONS = [
   { name: "ISLAND PARK ID",  query: "Island Park,Idaho,US" },
@@ -606,9 +635,13 @@ async function fetchNPSAlerts(park) {
     const data = await res.json();
     const alert = data.data?.[0];
     if (!alert) return null;
-    const line1 = `${park.name} NPS`.padEnd(15).substring(0, 15);
-    const line2 = String(alert.title || "").toUpperCase().padEnd(15).substring(0, 15);
-    const line3 = String(alert.description || "").toUpperCase().padEnd(15).substring(0, 15);
+
+    // Combine title + description and word-wrap to fit 15-char lines
+    const fullText = (String(alert.title || "") + " " + String(alert.description || "")).trim();
+    const wrapped = wrapToLines(fullText);
+    const line1 = centerLine(`${park.name} NPS`);
+    const line2 = centerLine(wrapped[0] || "");
+    const line3 = centerLine(wrapped[1] || "");
     return `${line1}\n${line2}\n${line3}`;
   } catch (err) {
     console.error(`NPS alert fetch error for ${park.name}:`, err.message);
@@ -630,9 +663,9 @@ async function fetchNPSFees(park) {
     const usFee = fees.find(f => f.title?.toLowerCase().includes("per vehicle") && !f.title?.toLowerCase().includes("non"));
     const intlFee = fees.find(f => f.title?.toLowerCase().includes("non"));
     if (!usFee) return null;
-    const line1 = `${park.name} FEE`.padEnd(15).substring(0, 15);
-    const line2 = `US VEH $${usFee.cost}`.padEnd(15).substring(0, 15);
-    const line3 = intlFee ? `INTL VEH $${intlFee.cost}`.padEnd(15).substring(0, 15) : "7 DAY PASS     ";
+    const line1 = centerLine(`${park.name} FEE`);
+    const line2 = centerLine(`US VEH $${usFee.cost}`);
+    const line3 = intlFee ? centerLine(`INTL $${intlFee.cost}`) : centerLine("7 DAY PASS");
     return `${line1}\n${line2}\n${line3}`;
   } catch (err) {
     console.error(`NPS fee fetch error for ${park.name}:`, err.message);
@@ -697,22 +730,19 @@ async function checkBookings() {
     const bookings = data.items || data.results || [];
     const activeBookings = bookings.filter(b => !b.is_block);
 
- // Grab currentGuest PIN from booking during entire stay for https://vestaboard-welcome-production.up.railway.app/guest
     const todayArrival = activeBookings.find(b => b.arrival === localDate);
     const todayDeparture = activeBookings.find(b => b.departure === localDate);
     const currentStay = activeBookings.find(b => b.arrival <= localDate && b.departure > localDate);
 
-// Keep currentGuest loaded during entire stay
-if (currentStay && !currentGuest) {
-  const guest = await fetchGuest(currentStay.guest_id);
-  currentGuest = guest;
-  console.log(`Mid-stay guest loaded: ${guest.first_name}`);
-}
+    if (currentStay && !currentGuest) {
+      const guest = await fetchGuest(currentStay.guest_id);
+      currentGuest = guest;
+      console.log(`Mid-stay guest loaded: ${guest.first_name}`);
+    }
 
-   // Find next upcoming arrival
     const futureBookings = activeBookings
-    .filter(b => b.arrival >= localDate)
-    .sort((a, b) => a.arrival.localeCompare(b.arrival));
+      .filter(b => b.arrival >= localDate)
+      .sort((a, b) => a.arrival.localeCompare(b.arrival));
     nextArrivalDate = futureBookings[0]?.arrival || null;
 
     // CHECKOUT: 9am to 10:30am on departure day
@@ -942,7 +972,8 @@ app.post("/guest/post", async (req, res) => {
     </html>
   `);
 });
-// --- Debug for phone numer PIN for guest automation for vestaboard
+
+// ─── DEBUG ────────────────────────────────────────────────────
 app.get("/debug", (_req, res) => {
   res.json({
     currentGuest: currentGuest ? "LOADED" : "NULL",
