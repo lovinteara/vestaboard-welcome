@@ -637,7 +637,7 @@ async function fetchNPSAlerts(park) {
     if (!alert) return null;
 
     // Combine title + description and word-wrap to fit 15-char lines
-    const fullText = (String(alert.title || "") + " " + String(alert.description || "")).trim();
+const fullText = String(alert.title || "").trim();
     const wrapped = wrapToLines(fullText);
     const line1 = centerLine(`${park.name} NPS`);
     const line2 = centerLine(wrapped[0] || "");
