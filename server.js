@@ -988,13 +988,13 @@ app.get("/", (_req, res) => res.send("Vestaboard script running ✅"));
 
 // ─── SCHEDULER ────────────────────────────────────────────────
 setTimeout(() => checkBookings(), 3000);
-setInterval(() => checkBookings(), 5 * 60 * 1000);
+setInterval(() => checkBookings(), 30 * 60 * 1000);
 
 setInterval(() => {
   const now = new Date();
   const localHour = parseInt(now.toLocaleString("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }));
   const localMin = now.getMinutes();
-  if (localHour === 8 && localMin < 5) {
+  if (localHour === 8 && localMin === 0) {
     checkBookings();
   }
 }, 60 * 1000);
